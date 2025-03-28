@@ -29,14 +29,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rakyll/hey/requester"
+	"hey/requester"
 )
 
 const (
 	headerRegexp = `^([\w-]+):\s*(.+)`
 	authRegexp   = `^(.+):([^\s].+)`
-	heyUA        = "hey/0.0.1"
 )
+
+var heyUA = "hey/0.0.1"
 
 var (
 	m           = flag.String("m", "GET", "")
@@ -64,6 +65,7 @@ var (
 	disableKeepAlives  = flag.Bool("disable-keepalive", false, "")
 	disableRedirects   = flag.Bool("disable-redirects", false, "")
 	proxyAddr          = flag.String("x", "", "")
+	socksProxyAddr     = flag.String("s", "", "")
 )
 
 var usage = `Usage: hey [options...] <url>
@@ -88,9 +90,10 @@ Options:
   -d  HTTP request body.
   -D  HTTP request body from file. For example, /home/user/file.txt or ./file.txt.
   -T  Content-type, defaults to "text/html".
-  -U  User-Agent, defaults to version "hey/0.0.1".
+  -U  User-Agent, defaults to version "` + heyUA + `".
   -a  Basic authentication, username:password.
   -x  HTTP Proxy address as host:port.
+  -s  SOCKS5 Proxy address as host:port.
   -h2 Enable HTTP/2.
 
   -host	HTTP Host header.
@@ -233,6 +236,7 @@ func main() {
 		DisableRedirects:   *disableRedirects,
 		H2:                 *h2,
 		ProxyAddr:          proxyURL,
+		SocksProxyAddr:     *socksProxyAddr,
 		Output:             *output,
 	}
 	w.Init()
@@ -253,18 +257,18 @@ func main() {
 }
 
 func errAndExit(msg string) {
-	fmt.Fprintf(os.Stderr, msg)
-	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprint(os.Stderr, msg)
+	fmt.Fprint(os.Stderr, "\n")
 	os.Exit(1)
 }
 
 func usageAndExit(msg string) {
 	if msg != "" {
-		fmt.Fprintf(os.Stderr, msg)
-		fmt.Fprintf(os.Stderr, "\n\n")
+		fmt.Fprint(os.Stderr, msg)
+		fmt.Fprint(os.Stderr, "\n\n")
 	}
 	flag.Usage()
-	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprint(os.Stderr, "\n")
 	os.Exit(1)
 }
 

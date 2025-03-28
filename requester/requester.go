@@ -17,9 +17,12 @@ package requester
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
+	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/http/httptrace"
 	"net/url"
@@ -28,6 +31,7 @@ import (
 	"time"
 
 	"golang.org/x/net/http2"
+	"golang.org/x/net/proxy"
 )
 
 // Max size of the buffer of result channel.
@@ -88,6 +92,10 @@ type Work struct {
 	// ProxyAddr is the address of HTTP proxy server in the format on "host:port".
 	// Optional.
 	ProxyAddr *url.URL
+
+	// SocksProxyAddr is the address of SOCKS5 proxy server in the format of "host:port".
+	// Optional.
+	SocksProxyAddr string
 
 	// Writer is where results will be written. If nil, results are written to stdout.
 	Writer io.Writer
@@ -243,8 +251,25 @@ func (b *Work) runWorkers() {
 		MaxIdleConnsPerHost: min(b.C, maxIdleConn),
 		DisableCompression:  b.DisableCompression,
 		DisableKeepAlives:   b.DisableKeepAlives,
-		Proxy:               http.ProxyURL(b.ProxyAddr),
 	}
+
+	// Set HTTP proxy if specified
+	if b.ProxyAddr != nil {
+		tr.Proxy = http.ProxyURL(b.ProxyAddr)
+	}
+
+	// Set SOCKS5 proxy if specified
+	if b.SocksProxyAddr != "" {
+		dialer, err := proxy.SOCKS5("tcp", b.SocksProxyAddr, nil, proxy.Direct)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error setting up SOCKS5 proxy: %v\n", err)
+			return
+		}
+		tr.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+			return dialer.Dial(network, addr)
+		}
+	}
+
 	if b.H2 {
 		http2.ConfigureTransport(tr)
 	} else {
@@ -274,7 +299,7 @@ func cloneRequest(r *http.Request, body []byte) *http.Request {
 		r2.Header[k] = append([]string(nil), s...)
 	}
 	if len(body) > 0 {
-		r2.Body = ioutil.NopCloser(bytes.NewReader(body))
+		r2.Body = io.NopCloser(bytes.NewReader(body))
 	}
 	return r2
 }

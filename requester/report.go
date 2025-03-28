@@ -64,20 +64,20 @@ type report struct {
 }
 
 func newReport(w io.Writer, results chan *result, output string, n int) *report {
-	cap := min(n, maxRes)
+	c := min(n, maxRes)
 	return &report{
 		output:      output,
 		results:     results,
 		done:        make(chan bool, 1),
 		errorDist:   make(map[string]int),
 		w:           w,
-		connLats:    make([]float64, 0, cap),
-		dnsLats:     make([]float64, 0, cap),
-		reqLats:     make([]float64, 0, cap),
-		resLats:     make([]float64, 0, cap),
-		delayLats:   make([]float64, 0, cap),
-		lats:        make([]float64, 0, cap),
-		statusCodes: make([]int, 0, cap),
+		connLats:    make([]float64, 0, c),
+		dnsLats:     make([]float64, 0, c),
+		reqLats:     make([]float64, 0, c),
+		resLats:     make([]float64, 0, c),
+		delayLats:   make([]float64, 0, c),
+		lats:        make([]float64, 0, c),
+		statusCodes: make([]int, 0, c),
 	}
 }
 
@@ -131,9 +131,13 @@ func (r *report) print() {
 		log.Println("error:", err.Error())
 		return
 	}
-	r.printf(buf.String())
+	r.fprint(buf.String())
 
-	r.printf("\n")
+	r.fprint("\n")
+}
+
+func (r *report) fprint(s string) {
+	fmt.Fprint(r.w, s)
 }
 
 func (r *report) printf(s string, v ...interface{}) {
@@ -244,13 +248,13 @@ func (r *report) histogram() []Bucket {
 	}
 	buckets[bc] = r.slowest
 	var bi int
-	var max int
+	var m int
 	for i := 0; i < len(r.lats); {
 		if r.lats[i] <= buckets[bi] {
 			i++
 			counts[bi]++
-			if max < counts[bi] {
-				max = counts[bi]
+			if m < counts[bi] {
+				m = counts[bi]
 			}
 		} else if bi < len(buckets)-1 {
 			bi++
